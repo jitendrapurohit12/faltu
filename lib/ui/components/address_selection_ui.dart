@@ -1,0 +1,135 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:faltu/constants/constants.dart';
+import 'package:faltu/listeners/confirmation_listener.dart';
+import 'package:faltu/listeners/generic_listener.dart';
+import 'package:faltu/models/individual/single_address.dart';
+import 'package:faltu/navigatior/navigation.dart';
+import 'package:faltu/utils/ui_helper.dart';
+import 'package:flutter/material.dart';
+
+class AddressSelectionUI extends StatefulWidget {
+  final List<DocumentSnapshot> _snapshotList;
+  final GenericListener _listener;
+
+  const AddressSelectionUI(this._snapshotList, this._listener);
+
+  @override
+  _AddressSelectionUIState createState() => _AddressSelectionUIState();
+}
+
+class _AddressSelectionUIState extends State<AddressSelectionUI>
+    implements ConfirmationListener {
+  List<SingleAddress> addressList = List();
+  int _selection = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    widget._snapshotList.forEach((snapshot) {
+      addressList.add(SingleAddress.fromJson(snapshot.data));
+    });
+  }
+
+  @override
+  void didUpdateWidget(AddressSelectionUI oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    addressList.clear();
+    widget._snapshotList.forEach((snapshot) {
+      if (snapshot != null)
+        addressList.add(SingleAddress.fromJson(snapshot.data));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+        child: ListView.builder(
+            itemCount: addressList != null ? addressList.length : 0,
+            itemBuilder: (context, index) => GestureDetector(
+                  onTap: () {
+                    changeSelection(index);
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 4.0, bottom: 4.0),
+                    child: Container(
+                      padding: EdgeInsets.all(16.0),
+                      decoration: UIHelper.customContainerDecoration(
+                          Colors.white,
+                          index == _selection ? Colors.black : Colors.white,
+                          1.0,
+                          4.0),
+                      child: Stack(
+                        children: <Widget>[
+                          getTextColumn(addressList[index]),
+                          Positioned(
+                              bottom: 4.0,
+                              right: 48.0,
+                              child: IconButton(
+                                  icon: Icon(Icons.edit, color: Colors.black),
+                                  onPressed: () => Navigation.newAddress(
+                                      context, addressList[index]))),
+                          Positioned(
+                              bottom: 4.0,
+                              right: 0.0,
+                              child: IconButton(
+                                  icon: Icon(Icons.delete, color: Colors.black),
+                                  onPressed: () {
+                                    UIHelper.showConfirmationDialog(
+                                        context,
+                                        Constants.ADDRESS_DELETE_DIALOG,
+                                        index,
+                                        Constants.DELETE,
+                                        this);
+                                  }))
+                        ],
+                      ),
+                    ),
+                  ),
+                )));
+  }
+
+  Widget getTextColumn(SingleAddress unit) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          unit.name,
+          style: TextStyle(
+              fontSize: 16.0,
+              color: Colors.black54,
+              fontWeight: FontWeight.w500),
+        ),
+        Text(unit.address),
+        SizedBox(height: 24.0),
+        Text('${unit.city}, ${unit.pin}'),
+        Text('Contact Number: ${unit.phone}'),
+        unit.altPhone != null
+            ? Text('Alternate Number: ${unit.altPhone}')
+            : null,
+        SizedBox(height: 16.0),
+        Chip(
+          label: Text(
+            unit.type,
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.black,
+        )
+      ],
+    );
+  }
+
+  @override
+  void success(int index) {
+    setState(() {
+      addressList.removeAt(index);
+    });
+  }
+
+  void changeSelection(int index) {
+    widget._listener.data(addressList[index]);
+    setState(() {
+      _selection = index;
+    });
+  }
+}
